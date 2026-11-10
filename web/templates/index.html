@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SilmulateS7Plc · S7 PLC 模拟器</title>
+  <link rel="icon" href="/static/logo.svg">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <!-- 首屏数据：后端把第一份 overview + 最近日志直接渲染进来，避免白屏。 -->
+  <script id="boot-data" type="application/json">{{ boot_json | safe }}</script>
+
+  <div id="app">
+    <div class="app">
+      <aside class="sidebar"></aside>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">
+            <div class="page-head">
+              <div class="page-head-main">
+                <div class="page-eyebrow">S7 PLC 模拟器</div>
+                <div class="page-title" id="app-title">正在加载…</div>
+                <div class="page-sub" id="app-subtitle">S7 PLC 模拟器</div>
+              </div>
+              <div class="tools">
+                <span id="app-status" style="display:flex;gap:6px;align-items:center"></span>
+                <button class="sm ghost" data-act="refresh" title="立即刷新状态与日志">刷新</button>
+              </div>
+            </div>
+            <header class="toolbar" id="app-toolbar"></header>
+          </div>
+          <main class="page-body" id="app-pages">
+            <div class="span-all panel" id="app-loading">正在连接后端服务…</div>
+          </main>
+        </div>
+      </div>
+    </div>
+    <div id="app-toasts"></div>
+  </div>
+  <noscript>
+    <p style="padding:20px">本工具的前端需要 JavaScript（原生 ES 模块），请在浏览器里启用后重试。</p>
+  </noscript>
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

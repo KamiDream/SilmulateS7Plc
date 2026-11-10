@@ -22,13 +22,6 @@ cd /path/to/SilmulateS7Plc
 python -m pip install -r requirements.txt
 ```
 
-当前验证环境：
-
-```bash
-/home/meng_xi/miniconda3/envs/simuulateS7/bin/python -m pip install -r requirements.txt
-/home/meng_xi/miniconda3/envs/simuulateS7/bin/python run.py
-```
-
 依赖只有：
 
 ```text

@@ -331,7 +331,7 @@ sudo setcap cap_net_bind_service=+ep $(readlink -f $(which python))
 ## 10. 测试
 
 ```bash
-/home/meng_xi/miniconda3/envs/simuulateS7/bin/python -m unittest tests.test_smoke -v
+python -m unittest tests.test_smoke -v
 ```
 
 覆盖：

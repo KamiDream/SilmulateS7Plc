@@ -244,7 +244,7 @@ def normalize_variables(raw: Any) -> list[dict[str, Any]]:
     if raw is None:
         return []
     if not isinstance(raw, list):
-        raise ValueError("DB 变量表必须是数组")
+        raise TypeError("DB 变量表必须是数组")
     if len(raw) > _MAX_VARIABLES:
         raise ValueError(f"变量过多（最多 {_MAX_VARIABLES} 个）")
 
@@ -252,7 +252,7 @@ def normalize_variables(raw: Any) -> list[dict[str, Any]]:
     seen: set[str] = set()
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
-            raise ValueError(f"第 {index + 1} 个变量不是对象")
+            raise TypeError(f"第 {index + 1} 个变量不是对象")
         name = str(item.get("name") or f"Var{index + 1}").strip()[:_MAX_NAME]
         if not name:
             name = f"Var{index + 1}"
@@ -482,7 +482,7 @@ def encode_scalar(scalar: ScalarType, value: Any) -> bytes:
             text = text[1:-1]
         try:
             raw = text.encode("latin-1", "replace")
-        except Exception:                                      # noqa: BLE001
+        except UnicodeEncodeError:
             raw = text.encode("ascii", "replace")
         maximum = scalar.max_len or 254
         if len(raw) > maximum:

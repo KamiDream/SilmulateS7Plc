@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 
 import snap7
@@ -47,22 +48,20 @@ def main() -> int:
             client.write_area(Area.DB, args.db, 0, payload)
             print(f"DB{args.db} write :", payload.hex())
             print(f"DB{args.db} read  :", bytes(client.read_area(Area.DB, args.db, 0, 8)).hex())
-        except Exception as exc:                               # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - 示例：任何失败都把原因打出来
             print(f"DB{args.db} 跳过（请先在“数据块”页新建 DB{args.db}）: {exc}")
 
         print("I0 read  :", bytes(client.read_area(Area.PE, 0, 0, 4)).hex())
         print("Q0 read  :", bytes(client.read_area(Area.PA, 0, 0, 4)).hex())
         return 0
-    except Exception as exc:                                   # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 - 命令行示例统一兜底并给出提示
         print(f"连接或读写失败: {type(exc).__name__}: {exc}", file=sys.stderr)
         print("请确认：run.py 正在运行、网页里已点“启动服务”、端口一致。",
               file=sys.stderr)
         return 1
     finally:
-        try:
+        with contextlib.suppress(Exception):
             client.disconnect()
-        except Exception:                                      # noqa: BLE001
-            pass
 
 
 if __name__ == "__main__":

@@ -15,14 +15,18 @@ SInt 整字节写 1 / 0。规则：
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from .dbtypes import layout_variables, parse_pulse
 from .events import EventLog
 from .store import AreaError, AreaStore
 from .tags import layout_tags
+
+logger = logging.getLogger(__name__)
 
 #: 输出节拍：分辨率就是这个值，所以周期最小也按 10 ms 限制
 TICK_MS = 10
@@ -40,13 +44,13 @@ class PulseEngine:
         self._config_getter = config_getter
         self._lock = threading.RLock()
         self._stop = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self._entries: list[dict[str, Any]] = []
         self._written: dict[tuple, bool] = {}
         self._ticks = 0
-        self._start: Optional[float] = None
-        self._logged: Optional[tuple] = None
+        self._start: float | None = None
+        self._logged: tuple | None = None
         self.last_error = ""
 
     # ------------------------------------------------------------------
@@ -72,8 +76,9 @@ class PulseEngine:
         while not self._stop.is_set():
             try:
                 self._tick()
-            except Exception as exc:  # noqa: BLE001 - 周期引擎不能把线程弄死
+            except Exception as exc:  # 周期引擎不能把线程弄死
                 self.last_error = f"{type(exc).__name__}: {exc}"
+                logger.exception("周期输出异常")
                 self.events.add("logic", "error",
                                 f"周期输出异常：{self.last_error}", level="err")
                 self._stop.wait(0.5)
@@ -126,13 +131,14 @@ class PulseEngine:
             if previous:
                 self._event("周期输出已停止：没有变量配置周期", level="warn")
             return
-        detail = "\n".join(
-            f"{'DB%d' % item['db'] if item['kind'] == 'DB' else item['area'] + ' 区'} "
-            f"{item['byte']}.{item['bit'] if item['bit'] is not None else '字节'} "
-            f"{item['on']}/{item['off']} ms"
-            for item in entries[:8])
+        lines = []
+        for item in entries[:8]:
+            where = f"DB{item['db']}" if item["kind"] == "DB" else f"{item['area']} 区"
+            spot = (str(item["byte"]) if item["bit"] is None
+                    else f"{item['byte']}.{item['bit']}")
+            lines.append(f"{where} {spot} {item['on']}/{item['off']} ms")
         self._event(f"周期输出已启用：{len(entries)} 个变量（CPU RUN 时按周期写 1 / 0）",
-                    detail=detail)
+                    detail="\n".join(lines))
 
     def _event(self, message: str, level: str = "ok",
                detail: str = "") -> None:
@@ -140,13 +146,14 @@ class PulseEngine:
             return
         try:
             self.events.add("logic", "pulse", message, detail=detail, level=level)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # 日志失败不能影响输出
+            self.last_error = f"写事件失败: {type(exc).__name__}: {exc}"
+            logger.debug("写事件失败", exc_info=True)
 
     # ------------------------------------------------------------------
     # 周期计算（apply 与测试都走这里）
     # ------------------------------------------------------------------
-    def apply(self, elapsed: float, entries: Optional[list[dict[str, Any]]] = None
+    def apply(self, elapsed: float, entries: list[dict[str, Any]] | None = None
               ) -> None:
         """按已经运行的秒数 ``elapsed`` 写一遍所有周期位。"""
         with self._lock:
@@ -216,15 +223,17 @@ class PulseEngine:
 
     @staticmethod
     def _entry(kind: str, owner: int, variable: dict[str, Any],
-               row: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+               row: dict[str, Any] | None) -> dict[str, Any] | None:
         if row is None:
             return None
         bit = row.get("bit")
         if row.get("kind") == "bool" and bit is not None:
             mode = "bit"
+            out_bit: int | None = int(bit)
         elif row.get("kind") == "int" and int(row.get("size") or 0) == 1 \
                 and str(row.get("type")) == "SInt":
             mode = "byte"          # SInt 整字节写 1 / 0
+            out_bit = None
         else:
             return None
         timings = parse_pulse(variable.get("pulse"))
@@ -237,7 +246,7 @@ class PulseEngine:
             "area": row["area"] if kind == "TAG" else "DB",
             "db": owner if kind == "DB" else 0,
             "byte": int(row["offset"]),
-            "bit": int(bit) if mode == "bit" else None,
+            "bit": out_bit,
             "on": on_ms,
             "off": off_ms,
             "period": on_ms + off_ms,

@@ -10,15 +10,19 @@ IF/ELSIF/ELSE、算术/比较/逻辑运算、少量函数），变量名来自 I
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from .events import EventLog
 from .scl import SclProgram, compile_scl
 from .store import AreaStore
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_LOGIC_SOURCE = '''\
 // SilmulateS7Plc · SCL 扫描逻辑
@@ -60,7 +64,7 @@ class LogicEngine:
         self._config_getter = config_getter
         self._lock = threading.RLock()
         self._stop = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self.enabled = False
         self.interval_ms = 100
@@ -71,7 +75,7 @@ class LogicEngine:
         self.last_error = ""
         self.loaded = False
         self._source = ""
-        self._program: Optional[SclProgram] = None
+        self._program: SclProgram | None = None
 
     # ------------------------------------------------------------------
     # 线程生命周期
@@ -118,8 +122,9 @@ class LogicEngine:
                             self.last_ms = round(elapsed, 3)
                             self.last_scan_ts = time.time()
                             self.last_error = ""
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         detail = traceback.format_exc(limit=8)
+                        logger.exception("SCL 逻辑执行异常，已自动停用")
                         with self._lock:
                             self.errors += 1
                             self.last_error = f"{type(exc).__name__}: {exc}"
@@ -154,7 +159,7 @@ class LogicEngine:
             marker.write_text("1", encoding="utf-8")
         self.reload(source, persist=False)
 
-    def reload(self, source: Optional[str] = None, persist: bool = True) -> None:
+    def reload(self, source: str | None = None, persist: bool = True) -> None:
         if source is None:
             source = self.path.read_text(encoding="utf-8")
         self._ensure_file()
@@ -193,8 +198,8 @@ class LogicEngine:
     # ------------------------------------------------------------------
     # 运行时配置
     # ------------------------------------------------------------------
-    def configure(self, enabled: Optional[bool] = None,
-                  interval_ms: Optional[int] = None) -> dict[str, Any]:
+    def configure(self, enabled: bool | None = None,
+                  interval_ms: int | None = None) -> dict[str, Any]:
         with self._lock:
             if interval_ms is not None:
                 value = int(interval_ms)

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import logging
 import threading
 import time
@@ -55,10 +56,8 @@ def main() -> int:
     if not args.no_browser:
         def open_later() -> None:
             time.sleep(0.8)
-            try:
+            with contextlib.suppress(Exception):
                 webbrowser.open(f"http://127.0.0.1:{args.web_port}")
-            except Exception:  # noqa: BLE001
-                pass
         threading.Thread(target=open_later, daemon=True).start()
 
     app = create_app()

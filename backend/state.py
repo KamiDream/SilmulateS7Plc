@@ -6,20 +6,37 @@ import logging
 import socket
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
-from .s7.config import (CONFIG_PATH, LOGIC_PATH, load_config, normalize_config,
-                        save_config, structure_signature)
-from .s7.dbtypes import (decode_scalar, encode_scalar, layout_variables,
-                         normalize_variables, parse_bool_text, parse_type)
+from .s7.config import (
+    CONFIG_PATH,
+    LOGIC_PATH,
+    load_config,
+    normalize_config,
+    save_config,
+    structure_signature,
+)
+from .s7.dbtypes import (
+    decode_scalar,
+    encode_scalar,
+    layout_variables,
+    normalize_variables,
+    parse_bool_text,
+    parse_type,
+)
 from .s7.events import EventLog
 from .s7.logic import LogicEngine
 from .s7.pulse import PulseEngine
 from .s7.scl import symbol_catalog
 from .s7.server import ClientTracker, SimServer
 from .s7.store import AreaError, AreaStore
-from .s7.tags import (combined_required, find_tag_conflicts, layout_tags,
-                      normalize_tags, tag_areas)
+from .s7.tags import (
+    combined_required,
+    find_tag_conflicts,
+    layout_tags,
+    normalize_tags,
+    tag_areas,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +70,7 @@ class Simulator:
         self.store = AreaStore()
         self.store.rebuild(self.config)
         self.tracker = ClientTracker()
-        self.server: Optional[SimServer] = None
+        self.server: SimServer | None = None
         self._restart_required = False
         self._lock = threading.RLock()
 
@@ -62,7 +79,8 @@ class Simulator:
         self.logic.interval_ms = int(self.config["logic"]["interval_ms"])
         try:
             self.logic.load_file()
-        except Exception as exc:  # noqa: BLE001 - 坏脚本不应阻止界面启动
+        except Exception as exc:  # 坏脚本不应阻止界面启动
+            logger.warning("用户逻辑加载失败", exc_info=True)
             self.events.add("system", "logic_load_error",
                             f"用户逻辑加载失败：{exc}", level="err")
         self.logic.enabled = bool(self.config["logic"]["enabled"]) and self.logic.loaded
@@ -121,11 +139,8 @@ class Simulator:
             self.server = server
             host = self.config["server"]["host"]
             port = int(self.config["server"]["port"])
-            try:
-                server.start_to(host, port)
-            except Exception:
-                # 保留 server 实例，让状态页能看到具体错误
-                raise
+            # 启动失败时也保留 server 实例，让状态页能看到具体错误
+            server.start_to(host, port)
             self._restart_required = False
             return server.status()
 
@@ -269,7 +284,8 @@ class Simulator:
             data = self.store.read(str(row["area"]), 0,
                                    int(row["offset"]), int(row["size"]))
             return decode_scalar(scalar, data)
-        except Exception:                                      # noqa: BLE001
+        except Exception:  # 监视值只是展示，读失败不影响界面
+            logger.debug("读取变量监视值失败", exc_info=True)
             return "—"
 
     def _tag_tables(self, area: str | None = None) -> list[dict[str, Any]]:
@@ -593,7 +609,8 @@ class Simulator:
             data = self.store.read("DB", number, int(row["offset"]),
                                    int(row["size"]))
             return decode_scalar(scalar, data)
-        except Exception:                                      # noqa: BLE001
+        except Exception:  # 监视值只是展示，读失败不影响界面
+            logger.debug("读取 DB 监视值失败", exc_info=True)
             return "—"
 
     def _decorate_rows(self, number: int, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -930,20 +947,20 @@ class Simulator:
     def shutdown(self) -> None:
         try:
             self.pulse.shutdown()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:  # 退出阶段尽力而为
+            logger.debug("停止周期输出线程失败", exc_info=True)
         try:
             self.logic.shutdown()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:  # 退出阶段尽力而为
+            logger.debug("停止 PLC 逻辑线程失败", exc_info=True)
         try:
             if self.server is not None:
                 self.server.stop()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:  # 退出阶段尽力而为
+            logger.debug("停止 S7 服务失败", exc_info=True)
 
 
-_SIM: Optional[Simulator] = None
+_SIM: Simulator | None = None
 _SIM_LOCK = threading.Lock()
 _atexit_registered = False
 

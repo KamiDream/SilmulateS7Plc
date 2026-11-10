@@ -4,8 +4,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 import snap7
 from flask import Blueprint, jsonify, request
@@ -34,9 +35,9 @@ def api_route(fn: Callable):
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
-        except (AreaError, ValueError, RuntimeError, SyntaxError) as exc:
+        except (AreaError, ValueError, TypeError, RuntimeError, SyntaxError) as exc:
             return fail(exc, 400)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # 保留 500，但把堆栈进服务日志
             logger.exception("API 未处理异常")
             return fail(f"内部错误: {type(exc).__name__}: {exc}", 500)
     return wrapper
@@ -443,7 +444,7 @@ def logic_symbols():
 def logic_source():
     source = body().get("source")
     if not isinstance(source, str):
-        raise ValueError("缺少 source")
+        raise TypeError("缺少 source")
     status = get_sim().logic_save_source(source)
     return jsonify({"ok": True, **status})
 

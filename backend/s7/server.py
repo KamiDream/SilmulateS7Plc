@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import logging
 import socket
 import struct
 import threading
@@ -17,11 +18,13 @@ import time
 from typing import Any
 
 from snap7.datatypes import S7Area
-from snap7.server import CPUState, Server
 from snap7.s7protocol import S7Function, S7PDUType
+from snap7.server import CPUState, Server
 
 from .events import EventLog
 from .store import AreaStore
+
+logger = logging.getLogger(__name__)
 
 _HEX_INLINE_LIMIT = 48
 _HEX_DETAIL_LIMIT = 256
@@ -198,7 +201,7 @@ class SimServer(Server):
         self._last_error = ""
         try:
             result = super().start(tcp_port)
-        except Exception as exc:  # noqa: BLE001 - 统一转成可展示的中文错误
+        except Exception as exc:
             self._last_error = _friendly_error(exc)
             self.events.add("server", "start_failed", self._last_error, level="err")
             raise RuntimeError(self._last_error) from exc
@@ -296,7 +299,8 @@ class SimServer(Server):
         parsed: dict[str, Any] = {}
         try:
             parsed = self._parse_request(request_data)
-        except Exception:  # noqa: BLE001 - 日志解析失败不影响协议处理
+        except Exception:  # 解析失败只影响日志详情，不影响服务
+            logger.debug("解析 S7 请求失败", exc_info=True)
             parsed = {}
 
         try:

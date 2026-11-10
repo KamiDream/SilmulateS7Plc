@@ -7,12 +7,12 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
-from typing import Any, Deque
+from typing import Any
 
 
 class EventLog:
     def __init__(self, capacity: int = 5000) -> None:
-        self._items: Deque[dict[str, Any]] = deque(maxlen=capacity)
+        self._items: deque[dict[str, Any]] = deque(maxlen=capacity)
         self._lock = threading.Lock()
         self._seq = 0
 

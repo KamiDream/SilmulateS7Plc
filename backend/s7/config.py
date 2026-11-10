@@ -14,8 +14,12 @@ from pathlib import Path
 from typing import Any
 
 from .dbtypes import layout_variables, normalize_variables
-from .tags import (combined_required, find_tag_conflicts, normalize_tags,
-                   normalize_tag_tables)
+from .tags import (
+    combined_required,
+    find_tag_conflicts,
+    normalize_tag_tables,
+    normalize_tags,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -247,8 +251,8 @@ def load_config() -> dict[str, Any]:
         with CONFIG_PATH.open("r", encoding="utf-8") as fh:
             raw = json.load(fh)
         return normalize_config(raw)
-    except Exception as exc:  # noqa: BLE001 - 配置损坏不应阻止程序启动
-        logger.warning("读取配置失败，使用默认配置: %s", exc)
+    except Exception as exc:  # 配置损坏不应阻止程序启动
+        logger.warning("读取配置失败，使用默认配置: %s", exc, exc_info=True)
         return deepcopy(DEFAULT_CONFIG)
 
 

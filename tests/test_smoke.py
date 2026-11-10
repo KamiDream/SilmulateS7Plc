@@ -13,16 +13,17 @@ import socket
 import tempfile
 import time
 import unittest
+from contextlib import suppress
 
 # 必须在导入 backend 之前设置，config.py 在导入时读取该变量。
 _TMP = tempfile.mkdtemp(prefix="s7sim-test-")
 os.environ["S7SIM_DATA_DIR"] = _TMP
 
-import snap7                                                    # noqa: E402
-from snap7.type import Area                                      # noqa: E402
+import snap7
+from snap7.type import Area
 
-from backend.app import create_app                               # noqa: E402
-from backend.state import get_sim                                # noqa: E402
+from backend.app import create_app
+from backend.state import get_sim
 
 
 def _free_port() -> int:
@@ -54,18 +55,12 @@ class SmokeTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        try:
+        with suppress(Exception):
             cls.s7.disconnect()
-        except Exception:                                        # noqa: BLE001
-            pass
-        try:
+        with suppress(Exception):
             cls.api.post("/api/server/stop")
-        except Exception:                                        # noqa: BLE001
-            pass
-        try:
+        with suppress(Exception):
             get_sim().shutdown()
-        except Exception:                                        # noqa: BLE001
-            pass
         shutil.rmtree(_TMP, ignore_errors=True)
 
     @classmethod

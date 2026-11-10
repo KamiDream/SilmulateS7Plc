@@ -7,15 +7,18 @@ I / Q / M / DB 都由这里的 ``AreaStore`` 统一持有。python-snap7 的纯 
 """
 from __future__ import annotations
 
+import logging
 import struct
 import threading
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 from snap7.datatypes import S7Area
 from snap7.type import SrvArea
 
 from .config import area_definitions
+
+logger = logging.getLogger(__name__)
 
 
 class AreaError(ValueError):
@@ -132,8 +135,8 @@ class AreaStore:
                 continue
             try:
                 server.unregister_area(_SRV_AREA[name], int(db))
-            except Exception:                                  # noqa: BLE001
-                pass
+            except Exception:  # 旧区域注销失败不影响后续注册
+                logger.debug("注销旧内存区失败: %s", key, exc_info=True)
         self.register_into(server)
 
     # ------------------------------------------------------------------

@@ -13,10 +13,17 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
-from .dbtypes import (ScalarType, decode_scalar, encode_scalar, normalize_pulse,
-                      parse_type, type_suggestions)
+from .dbtypes import (
+    ScalarType,
+    decode_scalar,
+    encode_scalar,
+    normalize_pulse,
+    parse_type,
+    type_suggestions,
+)
 
 _ADDR_RE = re.compile(
     r"^%?\s*([IQM])\s*(?:([BWD])\s*)?(\d+)(?:\.\s*([0-7]))?$",
@@ -83,14 +90,14 @@ def normalize_tags(raw: Any) -> list[dict[str, Any]]:
     if raw is None:
         return []
     if not isinstance(raw, list):
-        raise ValueError("PLC 变量表必须是数组")
+        raise TypeError("PLC 变量表必须是数组")
     if len(raw) > _MAX_TAGS:
         raise ValueError(f"变量过多（最多 {_MAX_TAGS} 个）")
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
-            raise ValueError(f"第 {index + 1} 个变量不是对象")
+            raise TypeError(f"第 {index + 1} 个变量不是对象")
         name = str(item.get("name") or f"Tag{index + 1}").strip()[:64]
         if not name:
             name = f"Tag{index + 1}"
@@ -170,14 +177,14 @@ def normalize_tag_tables(raw: Any) -> list[dict[str, Any]]:
     if raw is None:
         return []
     if not isinstance(raw, list):
-        raise ValueError("变量表必须是数组")
+        raise TypeError("变量表必须是数组")
     if len(raw) > _MAX_TAG_TABLES:
         raise ValueError(f"变量表过多（最多 {_MAX_TAG_TABLES} 张）")
 
     explicit: set[int] = set()
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
-            raise ValueError(f"第 {index + 1} 张变量表不是对象")
+            raise TypeError(f"第 {index + 1} 张变量表不是对象")
         value = item.get("id")
         if value in (None, ""):
             continue
@@ -326,8 +333,8 @@ def combined_required(
     required = {"I": 0, "Q": 0, "M": 0}
     for _key, _label, tags in groups:
         _, one = layout_tags(tags)
-        for area in required:
-            required[area] = max(required[area], int(one.get(area, 0)))
+        for area, current in required.items():
+            required[area] = max(current, int(one.get(area, 0)))
     return required
 
 
